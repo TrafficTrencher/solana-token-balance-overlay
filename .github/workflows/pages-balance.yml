@@ -104,18 +104,17 @@ jobs:
                 req.end();
               });
 
-              // Fetch price
-              let price = null;
-              try {
-                const priceUrl = \`https://price.jup.ag/v6/price?ids=\${MINT}\`;
-                const priceData = await httpsGet(priceUrl);
-                if (priceData.data && priceData.data[MINT]) {
-                  price = priceData.data[MINT].price || null;
-                }
-              } catch (e) {
-                console.warn('Price fetch failed:', e.message);
-              }
-
+              // Fetch price from DexScreener
+let price = null;
+try {
+  const priceUrl = \`https://api.dexscreener.com/latest/dex/tokens/\${MINT}\`;
+  const priceData = await httpsGet(priceUrl);
+  if (priceData.pairs && priceData.pairs.length > 0) {
+    price = parseFloat(priceData.pairs[0].priceUsd) || null;
+  }
+} catch (e) {
+  console.warn('Price fetch failed:', e.message);
+}
               // Calculate total USD
               const totalUsd = price !== null ? balance * price : null;
 
