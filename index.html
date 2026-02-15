@@ -89,6 +89,42 @@
         const TIMESTAMP_ELEMENT = document.getElementById('timestamp');
         const REFRESH_INTERVAL = 30000;
 
+        let lastUpdatedTime = null;
+
+        function updateLiveClock() {
+            if (!lastUpdatedTime) return;
+
+            const now = new Date();
+            const elapsed = Math.floor((now - lastUpdatedTime) / 1000);
+            
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+
+            let timeAgo = '';
+            if (hours > 0) {
+                timeAgo = `${hours}h ${minutes}m ${seconds}s ago`;
+            } else if (minutes > 0) {
+                timeAgo = `${minutes}m ${seconds}s ago`;
+            } else {
+                timeAgo = `${seconds}s ago`;
+            }
+
+            const dateStr = lastUpdatedTime.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: '2-digit'
+            });
+            const timeStr = lastUpdatedTime.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+
+            TIMESTAMP_ELEMENT.textContent = `Updated: ${dateStr} ${timeStr} (${timeAgo})`;
+        }
+
         async function fetchBalance() {
             try {
                 const cacheParam = Date.now();
@@ -117,20 +153,8 @@
                 })} tokens`;
                 TOKEN_ELEMENT.classList.remove('error', 'loading');
 
-                const date = new Date(data.updated_at);
-                const timeStr = date.toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
-                });
-                const dateStr = date.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: '2-digit'
-                });
-                TIMESTAMP_ELEMENT.textContent = `Updated: ${dateStr} ${timeStr}`;
-                TIMESTAMP_ELEMENT.classList.remove('error');
+                lastUpdatedTime = new Date(data.updated_at);
+                updateLiveClock();
 
             } catch (error) {
                 console.error('Error fetching balance:', error);
@@ -142,6 +166,10 @@
             }
         }
 
+        // Update the live clock every second
+        setInterval(updateLiveClock, 1000);
+
+        // Fetch balance from API
         fetchBalance();
         setInterval(fetchBalance, REFRESH_INTERVAL);
     </script>
