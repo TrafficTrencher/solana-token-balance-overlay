@@ -41,7 +41,7 @@ jobs:
           const fs = require('fs');
 
           const WALLET = 'CviKehFyefZVe4CV7D5ZoDsmwubtpjwysG4oxxDYPqGP';
-          const MINT = 'BwWdcMtBRz8R38sbjA3GnkR35wz6z3xz3GFiS1yGpump';
+          const MINT = '7nxyHFTB4BzZveSQV1EWrFqxPsK318oiSnXbC8knhefw';
           const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 
           async function httpsGet(url) {
