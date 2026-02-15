@@ -105,16 +105,17 @@ jobs:
               });
 
               // Fetch price from DexScreener
-let price = null;
-try {
-  const priceUrl = \`https://api.dexscreener.com/latest/dex/tokens/\${MINT}\`;
-  const priceData = await httpsGet(priceUrl);
-  if (priceData.pairs && priceData.pairs.length > 0) {
-    price = parseFloat(priceData.pairs[0].priceUsd) || null;
-  }
-} catch (e) {
-  console.warn('Price fetch failed:', e.message);
-}
+              let price = null;
+              try {
+                const priceUrl = \`https://api.dexscreener.com/latest/dex/tokens/\${MINT}\`;
+                const priceData = await httpsGet(priceUrl);
+                if (priceData.pairs && priceData.pairs.length > 0) {
+                  price = parseFloat(priceData.pairs[0].priceUsd) || null;
+                }
+              } catch (e) {
+                console.warn('Price fetch failed:', e.message);
+              }
+
               // Calculate total USD
               const totalUsd = price !== null ? balance * price : null;
 
