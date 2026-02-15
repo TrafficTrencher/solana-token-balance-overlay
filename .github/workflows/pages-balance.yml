@@ -1,0 +1,150 @@
+name: Update Balance & Deploy Pages
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  fetch-balance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Create site directory
+        run: mkdir -p site
+
+      - name: Copy index.html to site
+        run: cp index.html site/index.html
+
+      - name: Fetch balance and price
+        env:
+          HELIUS_API_KEY: ${{ secrets.HELIUS_API_KEY }}
+        run: |
+          node -e "
+          const https = require('https');
+          const fs = require('fs');
+
+          const WALLET = 'CviKehFyefZVe4CV7D5ZoDsmwubtpjwysG4oxxDYPqGP';
+          const MINT = 'BwWdcMtBRz8R38sbjA3GnkR35wz6z3xz3GFiS1yGpump';
+          const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
+
+          async function httpsGet(url) {
+            return new Promise((resolve, reject) => {
+              https.get(url, { timeout: 10000 }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  try {
+                    resolve(JSON.parse(data));
+                  } catch (e) {
+                    reject(e);
+                  }
+                });
+              }).on('error', reject);
+            });
+          }
+
+          async function main() {
+            try {
+              // Fetch balance
+              const heliusUrl = \`https://mainnet.helius-rpc.com/?api-key=\${HELIUS_API_KEY}\`;
+              const payload = JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTokenAccountsByOwner',
+                params: [
+                  WALLET,
+                  { mint: MINT },
+                  { encoding: 'jsonParsed' }
+                ]
+              });
+
+              let balance = 0;
+              await new Promise((resolve, reject) => {
+                const req = https.request(heliusUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Content-Length': payload.length },
+                  timeout: 10000
+                }, (res) => {
+                  let data = '';
+                  res.on('data', chunk => data += chunk);
+                  res.on('end', () => {
+                    try {
+                      const result = JSON.parse(data);
+                      if (result.result && result.result.value) {
+                        balance = result.result.value.reduce((sum, account) => {
+                          const parsed = account.account.data.parsed;
+                          return sum + (parsed.info.tokenAmount.uiAmount || 0);
+                        }, 0);
+                      }
+                      resolve();
+                    } catch (e) {
+                      reject(e);
+                    }
+                  });
+                });
+                req.on('error', reject);
+                req.write(payload);
+                req.end();
+              });
+
+              // Fetch price
+              let price = null;
+              try {
+                const priceUrl = \`https://price.jup.ag/v6/price?ids=\${MINT}\`;
+                const priceData = await httpsGet(priceUrl);
+                if (priceData.data && priceData.data[MINT]) {
+                  price = priceData.data[MINT].price || null;
+                }
+              } catch (e) {
+                console.warn('Price fetch failed:', e.message);
+              }
+
+              // Calculate total USD
+              const totalUsd = price !== null ? balance * price : null;
+
+              // Write balance.json
+              const output = {
+                wallet: WALLET,
+                mint: MINT,
+                balance: balance,
+                price_usd: price,
+                total_usd: totalUsd,
+                updated_at: new Date().toISOString()
+              };
+
+              fs.writeFileSync('site/balance.json', JSON.stringify(output, null, 2));
+              console.log('Balance updated:', output);
+            } catch (e) {
+              console.error('Fatal error:', e);
+              process.exit(1);
+            }
+          }
+
+          main();
+          "
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
