@@ -1,36 +1,149 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transparent Overlay</title>
+    <title>Traffic Trencher Token Balance</title>
     <style>
-        body {
+        * {
             margin: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #f0f0f0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+
+        body {
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             display: flex;
-            justify-content: center;
             align-items: center;
-            color: white;
-            font-size: 24px;
+            justify-content: center;
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 30px 40px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .label {
+            font-size: 14px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .usd-value {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #00ff88;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .token-amount {
+            font-size: 16px;
+            color: #ccc;
+            margin-bottom: 20px;
+            word-break: break-all;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #777;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        .error {
+            color: #ffaa00;
+        }
+
+        .loading {
+            color: #888;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
-    <div class="overlay">
-        This is a transparent overlay
+    <div class="container">
+        <div class="label">Traffic Trencher Token Balance</div>
+        <div class="usd-value" id="usdValue">USD: N/A</div>
+        <div class="token-amount" id="tokenAmount">—</div>
+        <div class="timestamp" id="timestamp">Updated: —</div>
     </div>
+
+    <script>
+        const USD_ELEMENT = document.getElementById('usdValue');
+        const TOKEN_ELEMENT = document.getElementById('tokenAmount');
+        const TIMESTAMP_ELEMENT = document.getElementById('timestamp');
+        const REFRESH_INTERVAL = 30000;
+
+        async function fetchBalance() {
+            try {
+                const cacheParam = Date.now();
+                const response = await fetch(`./balance.json?v=${cacheParam}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.total_usd !== null && data.total_usd !== undefined) {
+                    USD_ELEMENT.textContent = `$${data.total_usd.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    })}`;
+                    USD_ELEMENT.classList.remove('error', 'loading');
+                } else {
+                    USD_ELEMENT.textContent = 'USD: N/A';
+                    USD_ELEMENT.classList.add('error');
+                }
+
+                TOKEN_ELEMENT.textContent = `${data.balance.toLocaleString('en-US', {
+                    minimumFractionDigits: 6,
+                    maximumFractionDigits: 6
+                })} tokens`;
+                TOKEN_ELEMENT.classList.remove('error', 'loading');
+
+                const date = new Date(data.updated_at);
+                const timeStr = date.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+                const dateStr = date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: '2-digit'
+                });
+                TIMESTAMP_ELEMENT.textContent = `Updated: ${dateStr} ${timeStr}`;
+                TIMESTAMP_ELEMENT.classList.remove('error');
+
+            } catch (error) {
+                console.error('Error fetching balance:', error);
+                USD_ELEMENT.textContent = 'USD: N/A';
+                USD_ELEMENT.classList.add('error');
+                TOKEN_ELEMENT.textContent = 'Waiting for balance.json…';
+                TOKEN_ELEMENT.classList.add('loading');
+                TIMESTAMP_ELEMENT.textContent = 'Updated: —';
+            }
+        }
+
+        fetchBalance();
+        setInterval(fetchBalance, REFRESH_INTERVAL);
+    </script>
 </body>
 </html>
